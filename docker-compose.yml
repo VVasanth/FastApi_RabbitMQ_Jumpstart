@@ -1,0 +1,64 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    networks:
+    - deployml_network
+    ports:
+    - 5672:5672
+    - 5673:5673
+    - 15672:15672
+
+  dbserver:
+    image: mongo
+    container_name: "mongo"
+    restart: always
+    ports:
+    - 27017:27017
+    networks:
+    - deployml_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15672"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  webserver:
+    image: vvasanth/webserver
+    build: ./WebServer
+    ports:
+      - 80:80
+    networks:
+      - deployml_network
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+      - dbserver
+    environment:
+      - CLIENT_SLEEP=0.25  # Time in ms between each poll by web server against Redis
+      - CLIENT_MAX_TRIES=100  # Num tries by web server to retrieve results from Redis before giving up
+    links:
+      - rabbitmq
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  modelserver:
+    image: vvasanth/modelserver
+    build: ./modelserver
+    environment:
+      AMQP_URL: 'amqp://rabbitmq?connection_attempts=5&retry_delay=5'
+    networks:
+      - deployml_network
+    depends_on:
+      - rabbitmq
+    restart: on-failure
+    links:
+      - rabbitmq
+    command: ["python", "./app/main.py"]
+
+networks:
+    deployml_network:
+      driver: bridge
