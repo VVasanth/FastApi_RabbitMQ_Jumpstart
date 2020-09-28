@@ -55,9 +55,6 @@ services:
     depends_on:
       - rabbitmq
     restart: on-failure
-    links:
-      - rabbitmq
-    command: ["python", "./app/main.py"]
 
 networks:
     deployml_network:

@@ -13,7 +13,7 @@ def callback(ch, method, properties, body):
     print(" [x] Received %r" % body.decode())
     idVal = body.decode()
     print(" [x] Done")
-    model = pickle.load(open('model/model.pkl', 'rb'))
+    model = pickle.load(open('modelserver/model/model.pkl', 'rb'))
 
     values = list(mycol.find({"id":idVal},{"_id":0, "rateOfInterest":1,"salesIn1stMonth":1,"salesIn2ndMonth":1}))[0]
 
