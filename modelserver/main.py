@@ -27,6 +27,9 @@ def callback(ch, method, properties, body):
     logging.info("Prediction value" + str(predict_val[0]))
     pred_val_query = {"$set":{"prediction":predict_val[0]}}
     mycol.update_one(query_val, pred_val_query)
+    ch.basic_publish(exchange='', routing_key=properties.reply_to,
+                     properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+                     body=str(predict_val[0]))
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 myclient = pymongo.MongoClient("mongodb://dbserver:27017")
@@ -38,13 +41,13 @@ def main():
 
     logging.error("****************************")
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='rabbitmq'))
+        pika.ConnectionParameters(host='rabbitmq', heartbeat=1000, blocked_connection_timeout=2000))
     channel = connection.channel()
     logging.info("model server - receiver")
-    channel.queue_declare(queue='task_queue', durable=True)
+    channel.queue_declare(queue='ml_queue', durable=True)
     logging.info(' [*] Waiting for messages. To exit press CTRL+C')
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='task_queue', on_message_callback=callback)
+    channel.basic_consume(queue='ml_queue', on_message_callback=callback)
     channel.start_consuming()
 
 if __name__ == '__main__':
