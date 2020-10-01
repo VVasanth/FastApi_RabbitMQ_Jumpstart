@@ -1,18 +1,10 @@
 #!/usr/bin/env python
 import pika
-import time
 import pickle
-import sklearn
 import pymongo
 import sys
 import os
 import logging
-import time
-import time
-import configparser
-import argparse
-from logging import getLogger, StreamHandler, DEBUG
-
 
 def callback(ch, method, properties, body):
     logging.info(" [x] Received %r" % body.decode())
@@ -32,7 +24,15 @@ def callback(ch, method, properties, body):
                      body=str(predict_val[0]))
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-myclient = pymongo.MongoClient("mongodb://dbserver:27017")
+
+
+rabbitMQHost = os.environ.get("RABBITMQ_HOST")
+dbHost = os.environ.get("DB_HOST")
+queueName = os.environ.get("QUEUE_NAME")
+heartBeatTimeOut = int(os.environ.get("HEART_BEAT_TIMEOUT"))
+blockedConnectionTimeOut = int(os.environ.get("BLOCKED_CONNECTION_TIMEOUT"))
+
+myclient = pymongo.MongoClient("mongodb://" + dbHost + ":27017")
 mydb = myclient["mydatabase"]
 mycol = mydb["preddata"]
 logging.basicConfig(level=20)
@@ -41,13 +41,13 @@ def main():
 
     logging.error("****************************")
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='rabbitmq', heartbeat=1000, blocked_connection_timeout=2000))
+        pika.ConnectionParameters(host= rabbitMQHost, heartbeat=heartBeatTimeOut, blocked_connection_timeout=blockedConnectionTimeOut))
     channel = connection.channel()
     logging.info("model server - receiver")
-    channel.queue_declare(queue='ml_queue', durable=True)
+    channel.queue_declare(queue=queueName, durable=True)
     logging.info(' [*] Waiting for messages. To exit press CTRL+C')
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='ml_queue', on_message_callback=callback)
+    channel.basic_consume(queue=queueName, on_message_callback=callback)
     channel.start_consuming()
 
 if __name__ == '__main__':

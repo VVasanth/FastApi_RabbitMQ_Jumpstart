@@ -25,7 +25,7 @@ services:
       retries: 5
 
   webserver:
-    image: vvasanth/webserver
+    image: ml-jumpstart-kit/webserver
     build: ./WebServer
     ports:
       - 80:80
@@ -36,20 +36,36 @@ services:
       - rabbitmq
       - dbserver
     environment:
-      - CLIENT_SLEEP=0.25  # Time in ms between each poll by web server against Redis
-      - CLIENT_MAX_TRIES=100  # Num tries by web server to retrieve results from Redis before giving up
+      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=dbserver
+      - QUEUE_NAME=ml_queue
     links:
       - rabbitmq
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
 
-  modelserver:
-    image: vvasanth/modelserver
+  modelserver_1:
+    image: ml-jumpstart-kit/modelserver
     build: ./modelserver
     environment:
-      AMQP_URL: 'amqp://rabbitmq?connection_attempts=5&retry_delay=5'
+      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=dbserver
+      - QUEUE_NAME=ml_queue
+      - HEART_BEAT_TIMEOUT=120
+      - BLOCKED_CONNECTION_TIMEOUT=300
+    networks:
+      - deployml_network
+    depends_on:
+      - rabbitmq
+    restart: on-failure
+
+  modelserver_2:
+    image: ml-jumpstart-kit/modelserver
+    build: ./modelserver
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=dbserver
+      - QUEUE_NAME=ml_queue
+      - HEART_BEAT_TIMEOUT=120
+      - BLOCKED_CONNECTION_TIMEOUT=300
     networks:
       - deployml_network
     depends_on:
@@ -58,4 +74,3 @@ services:
 
 networks:
     deployml_network:
-      driver: bridge

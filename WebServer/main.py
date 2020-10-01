@@ -8,12 +8,19 @@ import threading
 import pika
 from time import sleep
 import uuid
+import os
 
 app = FastAPI()
 
-myclient = pymongo.MongoClient("mongodb://dbserver:27017")
+queueName = os.environ.get("QUEUE_NAME")
+rabbitMQHost = os.environ.get("RABBITMQ_HOST")
+dbHost = os.environ.get("DB_HOST")
+
+
+myclient = pymongo.MongoClient("mongodb://" + dbHost + ":27017")
 mydb = myclient["mydatabase"]
 mycol = mydb["preddata"]
+
 
 
 class PredInput(BaseModel):
@@ -33,7 +40,7 @@ async def predict_items(predInput:PredInput):
     x= mycol.insert(mydict)
     corr_id = mqClient.send_request(id)
     print(" [x] Sent %r" % id)
-    return 1
+    return {"result":"success", "tracking_id": id}
 
 
 class MQClient(object):
@@ -43,7 +50,7 @@ class MQClient(object):
     def __init__(self, queue_id):
 
         self.queue_id = queue_id
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitMQHost))
         self.channel = self.connection.channel()
         result = self.channel.queue_declare(queue="", durable=True)
         self.callback_queue = result.method.queue
@@ -74,18 +81,10 @@ class MQClient(object):
                                    body=payload)
         return corr_id
 
-    def getResults(self, payload):
-        print(self.queue)
-        return_value = self.queue[payload]
-        print("returned"
-              )
-
-        return return_value
-
-mqClient = MQClient("ml_queue")
+mqClient = MQClient(queueName)
 
 '''
 if __name__ == "__main__":
-    rpcClient = MQClient("ml_queue")
+    rpcClient = MQClient(queueName)
     uvicorn.run(app, host="0.0.0.0")
 '''
