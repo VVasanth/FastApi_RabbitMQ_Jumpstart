@@ -23,7 +23,7 @@ services:
     image: ml-jumpstart-kit/webserver
     build: ./WebServer
     ports:
-      - 80:80
+      - 8080:80
     networks:
       - deployml_network
     restart: on-failure
