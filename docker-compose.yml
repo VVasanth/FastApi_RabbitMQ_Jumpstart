@@ -18,11 +18,6 @@ services:
     - 27017:27017
     networks:
     - deployml_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15672"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   webserver:
     image: ml-jumpstart-kit/webserver
@@ -42,7 +37,7 @@ services:
     links:
       - rabbitmq
 
-  modelserver_1:
+  modelserver:
     image: ml-jumpstart-kit/modelserver
     build: ./modelserver
     environment:
@@ -56,21 +51,10 @@ services:
     depends_on:
       - rabbitmq
     restart: on-failure
-
-  modelserver_2:
-    image: ml-jumpstart-kit/modelserver
-    build: ./modelserver
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - DB_HOST=dbserver
-      - QUEUE_NAME=ml_queue
-      - HEART_BEAT_TIMEOUT=120
-      - BLOCKED_CONNECTION_TIMEOUT=300
-    networks:
-      - deployml_network
-    depends_on:
-      - rabbitmq
-    restart: on-failure
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
 
 networks:
     deployml_network:
